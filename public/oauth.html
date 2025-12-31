@@ -1,6 +1,6 @@
 <html>
 <head>
-    <title>Map of Github OAuth Flow</title>
+    <title>OAuth Flow</title>
     <style>
       *,
 *::before,
@@ -37,14 +37,15 @@ body {
           // tyey cancelled auth, close the window
           window.close();
         } else {
-          document.body.innerHTML = `<p>Oauth was cancelled</p>
-          Go to <a href='https://anvaka.github.io/map-of-github/'> https://anvaka.github.io/map-of-github/</a>`
+          document.body.innerHTML = `<p>OAuth was cancelled</p>
+          <p>Please return to the application.</p>`
         }
       }
     });
 
     function exchangeCodeForToken(code) {
-      var isDev = window.location.hostname !== 'anvaka.github.io';
+      // Check if running in development environment
+      var isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       var clientId = isDev ? '244bf05034e7cf9158cc' : '5f5bbe0c2623f5a7e738';
       const apiGatewayEndpoint = 'https://1xc2uuk51c.execute-api.us-east-1.amazonaws.com/Prod/github-oauth/?client=' + clientId + '&code=' + code;
       fetch(apiGatewayEndpoint, {headers: {"Content-Type": "application/json"}})
