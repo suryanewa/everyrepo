@@ -1,9 +1,28 @@
+import { useState, useEffect } from 'react'
+
 export default function InfoModal({ isOpen, onClose }) {
-  if (!isOpen) return null
+  const [isClosing, setIsClosing] = useState(false)
+  const [shouldRender, setShouldRender] = useState(isOpen)
+
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true)
+      setIsClosing(false)
+    } else if (shouldRender) {
+      setIsClosing(true)
+      const timer = setTimeout(() => {
+        setShouldRender(false)
+        setIsClosing(false)
+      }, 200)
+      return () => clearTimeout(timer)
+    }
+  }, [isOpen, shouldRender])
+
+  if (!shouldRender) return null
 
   return (
-    <div className="info-modal-overlay" onClick={onClose}>
-      <div className="info-modal" onClick={(e) => e.stopPropagation()}>
+    <div className={`info-modal-overlay ${isClosing ? 'closing' : ''}`} onClick={onClose}>
+      <div className={`info-modal ${isClosing ? 'closing' : ''}`} onClick={(e) => e.stopPropagation()}>
         <button className="info-modal-close" onClick={onClose} aria-label="Close">
           ×
         </button>

@@ -721,7 +721,7 @@ body {
 /* Title */
 .app-title {
   position: absolute;
-  bottom: 8px;
+  bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
@@ -846,6 +846,34 @@ body {
     transform: translateY(0);
     opacity: 1;
   }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modalSlideDown {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+}
+
+.info-modal-overlay.closing {
+  animation: fadeOut 0.2s ease-out forwards;
+}
+
+.info-modal.closing {
+  animation: modalSlideDown 0.2s ease-out forwards;
 }
 
 .info-modal-close {
