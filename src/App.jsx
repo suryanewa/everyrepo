@@ -169,24 +169,15 @@ function parseDotGraph(dotString) {
 export default function App() {
   const mapContainer = useRef(null)
   const map = useRef(null)
+  const clearConnectionsTimeout = useRef(null)
+  const closeInfoTimeout = useRef(null)
   const [selectedRepo, setSelectedRepo] = useState(null)
+  const [isClosingInfo, setIsClosingInfo] = useState(false)
   const [neighbors, setNeighbors] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [mapLoaded, setMapLoaded] = useState(false)
   const [infoModalOpen, setInfoModalOpen] = useState(false)
-  const [filters, setFilters] = useState({
-    language: '',
-    minStars: '',
-    maxStars: '',
-    minForks: '',
-    maxForks: '',
-    minConnections: '',
-    maxConnections: '',
-  })
-
-  // Count active filters
-  const activeFilterCount = Object.values(filters).filter(v => v !== '').length
 
   // Initialize map
   useEffect(() => {
@@ -306,7 +297,8 @@ export default function App() {
             paint: {
               'line-color': ['get', 'color'],
               'line-width': ['get', 'width'],
-              'line-opacity': 0.7
+              'line-opacity': 0,
+              'line-opacity-transition': { duration: 300 }
             }
           },
           {
@@ -317,7 +309,11 @@ export default function App() {
               'circle-color': ['get', 'color'],
               'circle-radius': ['get', 'radius'],
               'circle-stroke-color': '#ffffff',
-              'circle-stroke-width': 2
+              'circle-stroke-width': 2,
+              'circle-opacity': 0,
+              'circle-opacity-transition': { duration: 300 },
+              'circle-stroke-opacity': 0,
+              'circle-stroke-opacity-transition': { duration: 300 }
             }
           },
           {
@@ -386,6 +382,9 @@ export default function App() {
         console.log('Clicked:', { repoName, groupId, coords })
         
         if (repoName) {
+          if (closeInfoTimeout.current) clearTimeout(closeInfoTimeout.current)
+          setIsClosingInfo(false)
+          setNeighbors([])
           setSelectedRepo({
             id: repoName,
             coordinates: coords,
@@ -413,18 +412,47 @@ export default function App() {
 
   // Clear connections
   const clearConnections = useCallback(() => {
-    if (map.current) {
-      map.current.getSource('connections')?.setData({
-        type: 'FeatureCollection',
-        features: []
-      })
-      map.current.getSource('highlighted-nodes')?.setData({
-        type: 'FeatureCollection',
-        features: []
-      })
+    if (map.current && map.current.getLayer('connections-layer')) {
+      try {
+        map.current.setPaintProperty('connections-layer', 'line-opacity', 0)
+        map.current.setPaintProperty('highlighted-nodes-layer', 'circle-opacity', 0)
+        map.current.setPaintProperty('highlighted-nodes-layer', 'circle-stroke-opacity', 0)
+      } catch (e) {
+        console.warn('Could not set paint properties', e)
+      }
+      
+      if (clearConnectionsTimeout.current) {
+        clearTimeout(clearConnectionsTimeout.current)
+      }
+      
+      clearConnectionsTimeout.current = setTimeout(() => {
+        if (map.current && map.current.getSource('connections')) {
+          map.current.getSource('connections')?.setData({
+            type: 'FeatureCollection',
+            features: []
+          })
+          map.current.getSource('highlighted-nodes')?.setData({
+            type: 'FeatureCollection',
+            features: []
+          })
+        }
+        setNeighbors([])
+      }, 300)
+    } else {
+      setNeighbors([])
     }
-    setNeighbors([])
   }, [])
+
+  const handleCloseInfo = useCallback(() => {
+    setIsClosingInfo(true)
+    clearConnections()
+    
+    if (closeInfoTimeout.current) clearTimeout(closeInfoTimeout.current)
+    closeInfoTimeout.current = setTimeout(() => {
+      setSelectedRepo(null)
+      setIsClosingInfo(false)
+    }, 300)
+  }, [clearConnections])
 
   // Helper to draw connections on map
   const drawConnections = useCallback((repoName, graph, coords) => {
@@ -478,6 +506,10 @@ export default function App() {
 
     console.log('Found', connectedRepos.length, 'visible neighbors out of graph')
 
+    if (clearConnectionsTimeout.current) {
+      clearTimeout(clearConnectionsTimeout.current)
+    }
+
     map.current.getSource('connections').setData({
       type: 'FeatureCollection',
       features: connectionLines
@@ -500,6 +532,16 @@ export default function App() {
       type: 'FeatureCollection',
       features: highlightedFeatures
     })
+
+    if (map.current.getLayer('connections-layer')) {
+      try {
+        map.current.setPaintProperty('connections-layer', 'line-opacity', 0.7)
+        map.current.setPaintProperty('highlighted-nodes-layer', 'circle-opacity', 1)
+        map.current.setPaintProperty('highlighted-nodes-layer', 'circle-stroke-opacity', 1)
+      } catch (err) {
+        console.warn('Could not set paint properties', err)
+      }
+    }
 
     setNeighbors(connectedRepos.slice(0, 15))
   }, [])
@@ -565,6 +607,9 @@ export default function App() {
 
   const handleSearchSelect = useCallback(async (result) => {
     if (map.current && result.coordinates) {
+      if (closeInfoTimeout.current) clearTimeout(closeInfoTimeout.current)
+      setIsClosingInfo(false)
+      setNeighbors([])
       map.current.flyTo({
         center: result.coordinates,
         zoom: 10,
@@ -576,6 +621,35 @@ export default function App() {
       await showConnections(result.id, result.groupId, result.coordinates)
     }
   }, [showConnections])
+
+  useEffect(() => {
+    if (!map.current) return
+
+    const handleMapClick = (e) => {
+      if (!map.current.getLayer('circle-layer')) return
+      
+      try {
+        const bbox = [
+          [e.point.x - 10, e.point.y - 10],
+          [e.point.x + 10, e.point.y + 10]
+        ]
+        const features = map.current.queryRenderedFeatures(bbox, { layers: ['circle-layer'] })
+        if (features.length === 0) {
+          handleCloseInfo()
+        }
+      } catch (err) {
+        console.warn('queryRenderedFeatures error:', err)
+      }
+    }
+
+    map.current.on('click', handleMapClick)
+
+    return () => {
+      if (map.current) {
+        map.current.off('click', handleMapClick)
+      }
+    }
+  }, [handleCloseInfo, mapLoaded])
 
   const handleNeighborClick = useCallback(async (neighbor) => {
     if (map.current) {
@@ -597,6 +671,9 @@ export default function App() {
         zoom: map.current.getZoom(),
       })
       
+      if (closeInfoTimeout.current) clearTimeout(closeInfoTimeout.current)
+      setIsClosingInfo(false)
+      setNeighbors([])
       setSelectedRepo({
         id: neighbor.name,
         coordinates: coords,
@@ -606,11 +683,6 @@ export default function App() {
       await showConnections(neighbor.name, groupId, coords)
     }
   }, [showConnections, clearConnections])
-
-  const handleCloseInfo = useCallback(() => {
-    setSelectedRepo(null)
-    clearConnections()
-  }, [clearConnections])
 
   const handleZoomIn = () => map.current?.zoomIn()
   const handleZoomOut = () => map.current?.zoomOut()
@@ -629,9 +701,6 @@ export default function App() {
         searchResults={searchResults}
         onSelect={handleSearchSelect}
         onInfoClick={() => setInfoModalOpen(true)}
-        filters={filters}
-        onFiltersChange={setFilters}
-        activeFilterCount={activeFilterCount}
       />
 
       <InfoModal
@@ -641,10 +710,12 @@ export default function App() {
 
       {selectedRepo && (
         <InfoPanel
+          key={selectedRepo.id}
           node={selectedRepo}
           neighbors={neighbors}
           onClose={handleCloseInfo}
           onNeighborClick={handleNeighborClick}
+          isClosing={isClosingInfo}
         />
       )}
 
@@ -655,7 +726,7 @@ export default function App() {
       </div>
 
       <div className="app-title">
-        <h1>Every Repo at Once ✦ <a href="https://github.com/suryanewa" target="_blank" rel="noopener">@suryanewa</a></h1>
+        <h1><a href="https://github.com/suryanewa/everyrepo" target="_blank" rel="noopener">Every Repo at Once</a></h1>
       </div>
     </div>
   )
