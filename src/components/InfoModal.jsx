@@ -54,17 +54,6 @@ export default function InfoModal({ isOpen, onClose }) {
           </div>
 
           <div className="info-modal-section">
-            <h3>How to Use</h3>
-            <ul>
-              <li><strong>Click</strong> on any repository dot to see its details</li>
-              <li><strong>Search</strong> for repositories using the search bar</li>
-              <li><strong>Filter</strong> repositories by language, stars, forks, or connections</li>
-              <li><strong>Zoom</strong> in/out to explore different regions</li>
-              <li><strong>Click</strong> connected repositories to navigate</li>
-            </ul>
-          </div>
-
-          <div className="info-modal-section">
             <h3>Data Source</h3>
             <p>
               The underlying dataset was created through a multi-phase process: First, star relationships were 
