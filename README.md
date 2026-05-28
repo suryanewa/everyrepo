@@ -1,6 +1,6 @@
 # Every Repo at Once
 
-An interactive visualization of approximately 690,000 GitHub repositories arranged in a galaxy-like pattern. Each dot represents a repository, and their colors indicate size and popularity. Repositories are clustered based on their relationships and shared stargazers. Built on top of [Map of GitHub](https://anvaka.github.io/map-of-github/#2/0/0) by [Anvaka](https://anvaka.github.io/))
+An interactive visualization of approximately 690,000 GitHub repositories arranged in a galaxy-like pattern. Each dot represents a repository, and their colors indicate size and popularity. Repositories are clustered based on their relationships and shared stargazers. Built on top of [Map of GitHub](https://anvaka.github.io/map-of-github/#2/0/0) by [Anvaka](https://anvaka.github.io/)
 
 ## Features
 
